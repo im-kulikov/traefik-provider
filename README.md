@@ -67,7 +67,7 @@ Each endpoint in `endpoints` should include:
 ```yaml
 - host: 127.0.0.1
   apiPort: 8080
-  webPort: 443
+  webPort: 80
 ```
 
 * `host`: IP or hostname of the remote Traefik
