@@ -1,0 +1,28 @@
+displayName: Traefik as provider
+type: provider
+iconPath: .github/logo.png
+
+import: github.com/im-kulikov/traefik-provider
+
+summary: 'Traefik Provider - A Traefik provider that automatically configures routing based on another Traefik'
+
+testData:
+  pollInterval: "5s"
+  connTimeout: "15s"
+  tlsResolver: "letsencrypt"
+  endpoints:
+    - host: localhost
+      apiPort: 8080
+      webPort: 5180
+
+# Sample provider configuration
+providers:
+  plugin:
+    traefik-provider:
+      pollInterval: "5s"
+      connTimeout: "15s"
+      tlsResolver: "letsencrypt"
+      endpoints:
+        - host: localhost
+          apiPort: 8080
+          webPort: 5180
