@@ -77,10 +77,15 @@ func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration
 			}).String()})
 		}
 
-		output.HTTP.Services[name] = &dynamic.Service{LoadBalancer: &dynamic.ServersLoadBalancer{Servers: servers}}
+		output.HTTP.Services[name] = &dynamic.Service{
+			LoadBalancer: &dynamic.ServersLoadBalancer{Servers: servers},
+		}
 
 		if c.resolver != nil {
-			output.HTTP.Routers[name].Middlewares = append(output.HTTP.Routers[name].Middlewares, "http2https")
+			output.HTTP.Routers[name].Middlewares = append(
+				output.HTTP.Routers[name].Middlewares,
+				"http2https",
+			)
 
 			output.HTTP.Routers[name+"-secure"] = &dynamic.Router{
 				Service: name,
@@ -91,7 +96,6 @@ func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration
 			output.HTTP.Middlewares["http2https"] = &dynamic.Middleware{
 				RedirectScheme: &dynamic.RedirectScheme{Scheme: "https", Permanent: true},
 			}
-
 		}
 	}
 

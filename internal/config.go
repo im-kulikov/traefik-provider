@@ -10,16 +10,16 @@ import (
 )
 
 type Endpoint struct {
-	Host string `json:"host" yaml:"host" toml:"host" mapstructure:"host"`
+	Host string `json:"host"    yaml:"host"    toml:"host"    mapstructure:"host"`
 	API  int    `json:"apiPort" yaml:"apiPort" toml:"apiPort" mapstructure:"apiPort"`
 	WEB  int    `json:"webPort" yaml:"webPort" toml:"webPort" mapstructure:"webPort"`
 }
 
 type Config struct {
-	ConnTimeout  time.Duration `json:"connTimeout" yaml:"connTimeout" toml:"connTimeout" mapstructure:"connTimeout"`
+	ConnTimeout  time.Duration `json:"connTimeout"  yaml:"connTimeout"  toml:"connTimeout"  mapstructure:"connTimeout"`
 	PollInterval time.Duration `json:"pollInterval" yaml:"pollInterval" toml:"pollInterval" mapstructure:"pollInterval"`
-	Endpoints    []Endpoint    `json:"endpoints" yaml:"endpoints" toml:"endpoints" mapstructure:"endpoints"`
-	TLSResolver  *string       `json:"tlsResolver" yaml:"tlsResolver" toml:"tlsResolver" mapstructure:"tlsResolver"`
+	Endpoints    []Endpoint    `json:"endpoints"    yaml:"endpoints"    toml:"endpoints"    mapstructure:"endpoints"`
+	TLSResolver  *string       `json:"tlsResolver"  yaml:"tlsResolver"  toml:"tlsResolver"  mapstructure:"tlsResolver"`
 }
 
 func (c *Config) Validate() error {

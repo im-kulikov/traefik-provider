@@ -31,26 +31,10 @@ func newRunner(top context.Context) Routine {
 }
 
 func (r *routine) Go(handle func(context.Context) error) {
-	if r == nil {
-		panic("empty routine")
-	}
-
-	if r.WaitGroup == nil {
-		panic("empty wait group")
-	}
-
-	if r.Once == nil {
-		panic("empty sync.Once")
-	}
-
-	if r.Context == nil {
-		panic("empty context")
-	}
-
-	r.WaitGroup.Add(1)
+	r.Add(1)
 	go func() {
 		if err := handle(r.Context); err != nil {
-			r.Once.Do(func() { r.cancel(err) })
+			r.Do(func() { r.cancel(err) })
 		}
 
 		r.WaitGroup.Done()

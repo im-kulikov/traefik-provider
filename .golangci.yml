@@ -1,0 +1,91 @@
+# // yaml-language-server: $schema=https://raw.githubusercontent.com/golangci/golangci-lint/refs/heads/main/jsonschema/golangci.next.jsonschema.json
+
+version: "2"
+linters:
+  default: standard
+  enable:
+    - unparam
+    - whitespace
+    - unconvert
+    - bodyclose
+    - gocritic
+    - godot
+    - prealloc
+    - rowserrcheck
+    - unconvert
+    - lll
+    - cyclop
+    - gosec
+    - prealloc
+    - gochecknoglobals
+    - funlen
+  disable: []
+  settings:
+    cyclop:
+      # The maximal code complexity to report.
+      # Default: 10
+      max-complexity: 15
+      # The maximal average package complexity.
+      # If it's higher than 0.0 (float) the check is enabled.
+      # Default: 0.0
+      # package-average: 0.0
+    funlen:
+      # Checks the number of lines in a function.
+      # If lower than 0, disable the check.
+      # Default: 60
+      lines: 95
+      # Checks the number of statements in a function.
+      # If lower than 0, disable the check.
+      # Default: 40
+      statements: 40
+      # Ignore comments when counting lines.
+      # Default: true
+      ignore-comments: true
+
+  exclusions:
+    rules:
+      # Exclude some linters from running on tests files.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - funlen
+
+run:
+  relative-path-mode: gomod # cfg, wd, gomod, gitroot.
+
+formatters:
+  settings:
+    gci:
+      # Section configuration to compare against.
+      # Section names are case-insensitive and may contain parameters in ().
+      # The default order of sections is `standard > default > custom > blank > dot > alias > localmodule`,
+      # If `custom-order` is `true`, it follows the order of `sections` option.
+      # Default: ["standard", "default"]
+      sections:
+        - standard # Standard section: captures all standard packages.
+        - default # Default section: contains all imports that could not be matched to another section type.
+        - localmodule # Local module section: contains all local packages. This section is not present unless explicitly enabled.
+      # Checks that no inline comments are present.
+      # Default: false
+      no-inline-comments: true
+      # Checks that no prefix comments (comment lines above an import) are present.
+      # Default: false
+      no-prefix-comments: true
+      # Enable custom order of sections.
+      # If `true`, make the section order the same as the order of `sections`.
+      # Default: false
+      custom-order: true
+      # Drops lexical ordering for custom sections.
+      # Default: false
+      no-lex-order: true
+
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+

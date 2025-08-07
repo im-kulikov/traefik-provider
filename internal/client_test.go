@@ -101,5 +101,4 @@ func TestClient(t *testing.T) {
 			},
 		}, result)
 	}
-
 }
