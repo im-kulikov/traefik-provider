@@ -41,10 +41,6 @@ func (p *Provider) Init() error {
 		return err
 	}
 
-	if p.routine == nil {
-		return errors.New("method New not called")
-	}
-
 	return nil
 }
 
@@ -54,7 +50,15 @@ func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*inte
 
 	run := newRunner(top)
 	for _, client := range clients {
-		run.Go(func(ctx context.Context) error { return client.FetchRaw(ctx, merge) })
+		run.Go(func(ctx context.Context) error {
+			if err := client.FetchRaw(ctx, merge); err != nil {
+				log.Printf("could not fetch(client:%q): %s", client.Endpoint(), err)
+
+				return err
+			}
+
+			return nil
+		})
 	}
 
 	run.Go(func(ctx context.Context) error {
@@ -65,11 +69,19 @@ func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*inte
 
 	loop:
 		for {
+			if cnt == len(clients) {
+				break loop
+			}
+
 			select {
 			case <-ctx.Done():
 				break loop
 			case msg := <-merge:
 				cnt++
+
+				if msg == nil || msg.HTTP == nil {
+					continue loop
+				}
 
 				if val.HTTP == nil {
 					val.HTTP = &dynamic.HTTPConfiguration{
@@ -90,10 +102,6 @@ func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*inte
 				for key, item := range msg.HTTP.Middlewares {
 					val.HTTP.Middlewares[key] = item
 				}
-
-				if cnt == len(clients) {
-					break loop
-				}
 			}
 		}
 
@@ -110,10 +118,6 @@ func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*inte
 }
 
 func (p *Provider) Provide(out chan<- json.Marshaler) error {
-	if p.routine == nil {
-		return errors.New("method New not called")
-	}
-
 	p.routine.Go(func(top context.Context) error {
 		tick := time.NewTimer(time.Microsecond)
 		defer tick.Stop()

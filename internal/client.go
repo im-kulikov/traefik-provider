@@ -3,9 +3,12 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/traefik/genconf/dynamic"
@@ -20,7 +23,17 @@ type Client struct {
 
 const defaultRawPath = "/api/rawdata"
 
-func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration) error {
+var ErrEmptyResponse = errors.New("received empty response")
+
+func (c *Client) Endpoint() string {
+	if c == nil {
+		return "empty"
+	}
+
+	return c.endpoint.Host
+}
+
+func (c *Client) httpCall(ctx context.Context) (*dynamic.Configuration, error) {
 	uri := url.URL{
 		Scheme: "http",
 		Path:   defaultRawPath,
@@ -29,21 +42,27 @@ func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri.String(), nil)
 	if err != nil {
-		return fmt.Errorf("could not prepare request for %s: %w", uri.String(), err)
+		return nil, fmt.Errorf("could not prepare request for %s: %w", uri.String(), err)
 	}
 
 	var res *http.Response
 	if res, err = c.Do(req); err != nil {
-		return fmt.Errorf("could not make request for %s: %w", uri.String(), err)
+		return nil, fmt.Errorf("could not make request for %s: %w", uri.String(), err)
 	}
+
+	tee := io.TeeReader(res.Body, os.Stdout)
 
 	var result dynamic.Configuration
-	if err = json.NewDecoder(res.Body).Decode(&result.HTTP); err != nil {
-		return fmt.Errorf("could not decode response for %s: %w", uri.String(), err)
+	if err = json.NewDecoder(tee).Decode(&result.HTTP); err != nil {
+		return nil, fmt.Errorf("could not decode response for %s: %w", uri.String(), err)
 	}
 
+	return &result, res.Body.Close()
+}
+
+func (c *Client) prepareResponse(res *dynamic.Configuration) *dynamic.Configuration {
 	var output dynamic.Configuration
-	for key, item := range result.HTTP.Routers {
+	for key, item := range res.HTTP.Routers {
 		if strings.HasSuffix(key, "@internal") {
 			continue
 		}
@@ -51,17 +70,17 @@ func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration
 		name := strings.Split(key, "@")[0]
 		name = fmt.Sprintf("%s-%s", name, c.endpoint.Host)
 
+		service, ok := res.HTTP.Services[key]
+		if !ok {
+			continue
+		}
+
 		if output.HTTP == nil {
 			output.HTTP = &dynamic.HTTPConfiguration{
 				Routers:     make(map[string]*dynamic.Router),
 				Services:    make(map[string]*dynamic.Service),
 				Middlewares: make(map[string]*dynamic.Middleware),
 			}
-		}
-
-		service, ok := result.HTTP.Services[key]
-		if !ok {
-			continue
 		}
 
 		output.HTTP.Routers[name] = &dynamic.Router{
@@ -99,7 +118,21 @@ func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration
 		}
 	}
 
-	out <- &output
+	return &output
+}
 
-	return res.Body.Close()
+func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration) error {
+	if res, err := c.httpCall(ctx); err != nil {
+		out <- nil
+
+		return err
+	} else if len(res.HTTP.Routers) > 0 && len(res.HTTP.Services) > 0 {
+		out <- c.prepareResponse(res)
+
+		return nil
+	}
+
+	out <- nil
+
+	return fmt.Errorf("%w (1client:%q)", ErrEmptyResponse, c.endpoint.Host)
 }
