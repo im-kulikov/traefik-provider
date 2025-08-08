@@ -45,11 +45,11 @@ func TestClient_FetchErrors(t *testing.T) {
 	}
 
 	{
-		ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond)
-		defer cancel()
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
 
 		out := make(chan *dynamic.Configuration, 2)
-		require.ErrorIs(t, cli.FetchRaw(ctx, out), context.DeadlineExceeded)
+		require.ErrorIs(t, cli.FetchRaw(ctx, out), context.Canceled)
 		close(out)
 		require.Len(t, out, 1)
 		require.Nil(t, <-out)
