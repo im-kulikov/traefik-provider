@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/traefik/genconf/dynamic"
@@ -50,11 +50,17 @@ func (c *Client) httpCall(ctx context.Context) (*dynamic.Configuration, error) {
 		return nil, fmt.Errorf("could not make request for %s: %w", uri.String(), err)
 	}
 
-	tee := io.TeeReader(res.Body, os.Stdout)
+	buf := new(bytes.Buffer)
+	tee := io.TeeReader(res.Body, buf)
 
 	var result dynamic.Configuration
 	if err = json.NewDecoder(tee).Decode(&result.HTTP); err != nil {
-		return nil, fmt.Errorf("could not decode response for %s: %w", uri.String(), err)
+		return nil, fmt.Errorf(
+			"could not decode response for %s: %s: %w",
+			uri.String(),
+			buf.String(),
+			err,
+		)
 	}
 
 	return &result, res.Body.Close()
