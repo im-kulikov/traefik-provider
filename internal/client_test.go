@@ -16,6 +16,8 @@ import (
 	"github.com/traefik/genconf/dynamic"
 )
 
+const whoamiService = "whoami"
+
 func catchError(args ...any) error {
 	if ln := len(args); ln < 0 {
 		return nil
@@ -88,7 +90,7 @@ func TestClient(t *testing.T) {
 	cli, err := cfg.PrepareClients(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, cli[0].Endpoint(), addr.IP.String())
+	require.Equal(t, cli[0].Endpoint(), addr.String())
 
 	out := make(chan *dynamic.Configuration, 1)
 	if err = cli[0].FetchRaw(t.Context(), out); err != nil {
@@ -104,19 +106,19 @@ func TestClient(t *testing.T) {
 		require.Equal(t, &dynamic.Configuration{
 			HTTP: &dynamic.HTTPConfiguration{
 				Routers: map[string]*dynamic.Router{
-					"whoami-" + addr.IP.String(): {
+					PrepareName(whoamiService, addr.String()): {
 						Middlewares: []string{"http2https"},
-						Service:     "whoami-" + addr.IP.String(),
+						Service:     PrepareName(whoamiService, addr.String()),
 						Rule:        "Host(`whoami.example.com`)",
 					},
-					"whoami-" + addr.IP.String() + "-secure": {
-						Service: "whoami-" + addr.IP.String(),
+					PrepareName(whoamiService, addr.String()) + "-secure": {
+						Service: PrepareName(whoamiService, addr.String()),
 						Rule:    "Host(`whoami.example.com`)",
 						TLS:     &dynamic.RouterTLSConfig{CertResolver: resolver},
 					},
 				},
 				Services: map[string]*dynamic.Service{
-					"whoami-" + addr.IP.String(): {
+					PrepareName(whoamiService, addr.String()): {
 						LoadBalancer: &dynamic.ServersLoadBalancer{
 							Servers: []dynamic.Server{{URL: (&url.URL{
 								Scheme: "http",
@@ -170,7 +172,7 @@ func TestClient_tls(t *testing.T) {
 	cli, err := cfg.PrepareClients(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, cli[0].Endpoint(), addr.IP.String())
+	require.Equal(t, cli[0].Endpoint(), addr.String())
 
 	out := make(chan *dynamic.Configuration, 1)
 	if err = cli[0].FetchRaw(t.Context(), out); err != nil {
@@ -186,19 +188,19 @@ func TestClient_tls(t *testing.T) {
 		require.Equal(t, &dynamic.Configuration{
 			HTTP: &dynamic.HTTPConfiguration{
 				Routers: map[string]*dynamic.Router{
-					"whoami-" + addr.IP.String(): {
+					PrepareName(whoamiService, addr.String()): {
 						Middlewares: []string{"http2https"},
-						Service:     "whoami-" + addr.IP.String(),
+						Service:     PrepareName(whoamiService, addr.String()),
 						Rule:        "Host(`whoami.example.com`)",
 					},
-					"whoami-" + addr.IP.String() + "-secure": {
-						Service: "whoami-" + addr.IP.String(),
+					PrepareName(whoamiService, addr.String()) + "-secure": {
+						Service: PrepareName(whoamiService, addr.String()),
 						Rule:    "Host(`whoami.example.com`)",
 						TLS:     &dynamic.RouterTLSConfig{CertResolver: resolver},
 					},
 				},
 				Services: map[string]*dynamic.Service{
-					"whoami-" + addr.IP.String(): {
+					PrepareName(whoamiService, addr.String()): {
 						LoadBalancer: &dynamic.ServersLoadBalancer{
 							Servers: []dynamic.Server{{URL: (&url.URL{
 								Scheme: "https",
