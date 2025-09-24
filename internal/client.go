@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/traefik/genconf/dynamic"
@@ -24,12 +26,16 @@ const defaultRawPath = "/api/rawdata"
 
 var ErrEmptyResponse = errors.New("received empty response")
 
+func PrepareName(name, endpoint string) string {
+	return fmt.Sprintf("%s-%s", name, strings.NewReplacer(".", "_", ":", "__").Replace(endpoint))
+}
+
 func (c *Client) Endpoint() string {
 	if c == nil {
 		return "empty"
 	}
 
-	return c.endpoint.Host
+	return net.JoinHostPort(c.endpoint.Host, strconv.Itoa(c.endpoint.API))
 }
 
 func (c *Client) httpCall(ctx context.Context) (*dynamic.Configuration, error) {
@@ -57,14 +63,15 @@ func (c *Client) httpCall(ctx context.Context) (*dynamic.Configuration, error) {
 }
 
 func (c *Client) prepareResponse(res *dynamic.Configuration) *dynamic.Configuration {
+	endpoint := c.Endpoint()
+
 	var output dynamic.Configuration
 	for key, item := range res.HTTP.Routers {
 		if strings.HasSuffix(key, "@internal") {
 			continue
 		}
 
-		name := strings.Split(key, "@")[0]
-		name = fmt.Sprintf("%s-%s", name, c.endpoint.Host)
+		name := PrepareName(strings.Split(key, "@")[0], endpoint)
 
 		service, ok := res.HTTP.Services[key]
 		if !ok {
@@ -116,11 +123,10 @@ func (c *Client) prepareResponse(res *dynamic.Configuration) *dynamic.Configurat
 	return &output
 }
 
-func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration) error {
-	if res, err := c.httpCall(ctx); err != nil {
-		out <- nil
-
-		return err
+func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration) (err error) {
+	var res *dynamic.Configuration
+	if res, err = c.httpCall(ctx); err != nil {
+		err = fmt.Errorf("(client:%q): %w", c.Endpoint(), err)
 	} else if len(res.HTTP.Routers) > 0 && len(res.HTTP.Services) > 0 {
 		out <- c.prepareResponse(res)
 
@@ -128,6 +134,9 @@ func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration
 	}
 
 	out <- nil
+	if err == nil {
+		err = fmt.Errorf("(client:%q): %w", c.Endpoint(), ErrEmptyResponse)
+	}
 
-	return fmt.Errorf("%w (1client:%q)", ErrEmptyResponse, c.endpoint.Host)
+	return err
 }

@@ -45,7 +45,7 @@ func (p *Provider) Init() error {
 }
 
 func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*internal.Client) error {
-	merge := make(chan *dynamic.Configuration, 2)
+	merge := make(chan *dynamic.Configuration, len(clients))
 	defer close(merge)
 
 	run := newRunner(top)
