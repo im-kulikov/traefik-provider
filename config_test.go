@@ -11,9 +11,11 @@ func TestConfig_validate(t *testing.T) {
 	require.EqualError(t, cfg.validate(), "empty config")
 
 	cfg = CreateConfig()
+	cfg.ConnTimeout = ""
 	require.ErrorContains(t, cfg.validate(), "time: invalid duration", "empty connTimeout")
 
 	cfg.ConnTimeout = "5s"
+	cfg.PollInterval = ""
 	require.ErrorContains(t, cfg.validate(), "time: invalid duration", "empty pollTimeout")
 
 	cfg.PollInterval = "5s"

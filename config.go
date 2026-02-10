@@ -12,6 +12,11 @@ type Endpoint struct {
 	Host string `json:"host"    yaml:"host"    toml:"host"    mapstructure:"host"`
 	API  int    `json:"apiPort" yaml:"apiPort" toml:"apiPort" mapstructure:"apiPort"`
 	WEB  int    `json:"webPort" yaml:"webPort" toml:"webPort" mapstructure:"webPort"`
+	TLS  *TLS   `json:"tls"     yaml:"tls"     toml:"tls"     mapstructure:"tls"`
+}
+
+type TLS struct {
+	IgnoreInsecure bool `json:"ignoreInsecure" yaml:"ignoreInsecure" toml:"ignoreInsecure" mapstructure:"ignoreInsecure"`
 }
 
 type Config struct {
@@ -23,7 +28,12 @@ type Config struct {
 	*internal.Config `mapstructure:"-"`
 }
 
-func CreateConfig() *Config { return new(Config) }
+func CreateConfig() *Config {
+	return &Config{
+		PollInterval: "5s",
+		ConnTimeout:  "15s",
+	}
+}
 
 func (c *Config) validate() error {
 	if c == nil {
@@ -58,10 +68,18 @@ func (c *Config) validate() error {
 			return fmt.Errorf("empty #%d endpoint webPort: %d", i, endpoint.WEB)
 		}
 
+		var tlsConfig *internal.TLS
+		if endpoint.TLS != nil {
+			tlsConfig = &internal.TLS{
+				IgnoreInsecure: endpoint.TLS.IgnoreInsecure,
+			}
+		}
+
 		c.Config.Endpoints = append(c.Config.Endpoints, internal.Endpoint{
 			Host: endpoint.Host,
 			API:  endpoint.API,
 			WEB:  endpoint.WEB,
+			TLS:  tlsConfig,
 		})
 	}
 
