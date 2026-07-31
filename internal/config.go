@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -91,6 +92,12 @@ func (c *Config) PrepareClients(top context.Context) ([]*Client, error) {
 			}
 		}
 
+		// The reachability probe is diagnostic only. An endpoint that is down
+		// when the provider is constructed must NOT abort construction: hosts
+		// get rebooted, and a later poll picks them up again. Aborting here
+		// leaves Traefik with no provider at all -- and because Traefik does not
+		// retry a provider that failed to start, every endpoint stays unrouted
+		// until Traefik itself is restarted.
 		var err error
 		for _, port := range []int{endpoint.API, endpoint.WEB} {
 			uri := endpoint.buildURI(port, defaultPath)
@@ -102,11 +109,17 @@ func (c *Config) PrepareClients(top context.Context) ([]*Client, error) {
 
 			var res *http.Response
 			if res, err = cli.Do(req); err != nil {
-				return nil, fmt.Errorf("could not call request(%s): %w", uri, err)
+				log.Printf(
+					"endpoint unreachable at startup, will retry on next poll (%s): %s",
+					uri,
+					err,
+				)
+
+				continue
 			}
 
 			if err = res.Body.Close(); err != nil {
-				return nil, fmt.Errorf("could not close response body: %w", err)
+				log.Printf("could not close response body (%s): %s", uri, err)
 			}
 		}
 
