@@ -50,9 +50,18 @@ func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*inte
 
 	run := newRunner(top)
 	for _, client := range clients {
+		// Capture the loop variable explicitly. Under Go 1.22+ `client` is
+		// already per-iteration, but Traefik executes plugins through Yaegi,
+		// which still shares the loop variable across iterations. Without this
+		// every goroutine fetches from whichever endpoint the loop finished on,
+		// so the provider silently discovers only the last endpoint's routers.
+		// This compiles and passes `go test` either way -- see the PR for a
+		// standalone reproduction.
+		cli := client
+
 		run.Go(func(ctx context.Context) error {
-			if err := client.FetchRaw(ctx, merge); err != nil {
-				log.Printf("could not fetch(client:%q): %s", client.Endpoint(), err)
+			if err := cli.FetchRaw(ctx, merge); err != nil {
+				log.Printf("could not fetch(client:%q): %s", cli.Endpoint(), err)
 
 				return err
 			}
