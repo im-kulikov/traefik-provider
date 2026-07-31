@@ -118,16 +118,51 @@ func (c *Client) prepareResponse(res *dynamic.Configuration) *dynamic.Configurat
 
 func (c *Client) FetchRaw(ctx context.Context, out chan<- *dynamic.Configuration) error {
 	if res, err := c.httpCall(ctx); err != nil {
-		out <- nil
+		c.emit(ctx, out, nil)
 
 		return err
 	} else if len(res.HTTP.Routers) > 0 && len(res.HTTP.Services) > 0 {
-		out <- c.prepareResponse(res)
+		c.emit(ctx, out, c.prepareResponse(res))
 
 		return nil
 	}
 
-	out <- nil
+	c.emit(ctx, out, nil)
 
 	return fmt.Errorf("%w (1client:%q)", ErrEmptyResponse, c.endpoint.Host)
+}
+
+// emit delivers cfg to out, abandoning the send once ctx is done.
+//
+// out is a small buffered channel drained by a single aggregator. If that
+// aggregator has already stopped collecting -- for example because the poll
+// deadline expired -- an unconditional send would block forever, leaking the
+// goroutine and hanging the WaitGroup the poll loop waits on, which would stop
+// the provider from ever polling again.
+func (c *Client) emit(
+	ctx context.Context,
+	out chan<- *dynamic.Configuration,
+	cfg *dynamic.Configuration,
+) {
+	// Fast path: while the aggregator still has buffer space, deliver
+	// unconditionally. This keeps behaviour identical to a plain send even when
+	// ctx is already cancelled or nil, which callers rely on.
+	select {
+	case out <- cfg:
+		return
+	default:
+	}
+
+	if ctx == nil {
+		out <- cfg
+
+		return
+	}
+
+	// Buffer is full: wait for the aggregator, but abandon the send if the poll
+	// has already been given up on, so this goroutine cannot leak.
+	select {
+	case out <- cfg:
+	case <-ctx.Done():
+	}
 }

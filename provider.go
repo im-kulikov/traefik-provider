@@ -52,9 +52,19 @@ func fetchConfig(top context.Context, out chan<- json.Marshaler, clients []*inte
 	for _, client := range clients {
 		run.Go(func(ctx context.Context) error {
 			if err := client.FetchRaw(ctx, merge); err != nil {
+				// Deliberately logged and swallowed. Returning the error would
+				// cancel the context shared by every fetch in this poll, and the
+				// aggregator below selects on that same context -- so a single
+				// unreachable endpoint would make it break out of its collect
+				// loop and publish a configuration missing the healthy
+				// endpoints' routers. Traefik applies that as the provider's
+				// whole config, so one dead host would drop routing for all of
+				// them.
+				//
+				// FetchRaw always emits to merge, including on failure, so the
+				// aggregator's counter still advances and the poll completes
+				// with whatever the healthy endpoints returned.
 				log.Printf("could not fetch(client:%q): %s", client.Endpoint(), err)
-
-				return err
 			}
 
 			return nil
